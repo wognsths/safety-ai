@@ -165,9 +165,10 @@ def run_federated_training(cfg: DictConfig) -> None:
     strategy = get_strategy(cfg)
 
     # 4. Launch simulation ------------------------------------------------------------------
-    fl.simulation.start_simulation(
+    history = fl.simulation.start_simulation(
         client_fn=client_fn,
         num_clients=cfg.fl.min_available_clients,
         config=fl.server.ServerConfig(num_rounds=cfg.train.rounds),
         strategy=strategy,
     )
+    return history

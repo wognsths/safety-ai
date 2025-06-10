@@ -62,6 +62,10 @@ python scripts/dataset_split.py --split config/split/dirichlet_alpha10.yaml
 python scripts/dataset_split.py --split config/split/quasi_iid.yaml
 ```
 
+스플릿을 생성하면 `data/split/` 폴더에 JSON 파일과 각 클라이언트의 클래스 분포를
+확인할 수 있는 플랏(`*_dist.png`)이 저장됩니다. JSON에는 클라이언트별 엔트로피도
+포함되므로 데이터가 얼마나 non-IID한지 정량적으로 확인할 수 있습니다.
+
 ### 3. Federated Learning 실행
 
 ```bash
@@ -73,6 +77,12 @@ python run_federated.py --config config/fl/fedbn.yaml
 
 # FedProx 실행 (Proximal term)
 python run_federated.py --config config/fl/fedprox.yaml
+```
+
+### 4. 중앙 집중식 베이스라인 실행
+
+```bash
+python run_centralized.py --config config/centralized/custom9.yaml
 ```
 
 ## 📊 **데이터 분할 방식**
@@ -143,7 +153,14 @@ fl:
 ## 🔍 **개선된 코드 품질**
 
 - ✅ **올바른 FedBN 구현**: BN 파라미터 로컬 유지
-- ✅ **완전한 FedProx**: Proximal term 적용  
+- ✅ **완전한 FedProx**: Proximal term 적용
 - ✅ **견고한 에러 처리**: 파일 존재성 검증
 - ✅ **명확한 설정 분리**: 전략별 독립적 설정
-- ✅ **자동 디바이스 감지**: GPU/CPU 자동 선택 
+- ✅ **자동 디바이스 감지**: GPU/CPU 자동 선택
+
+## 🐳 **Docker 사용 예시**
+
+```bash
+docker build -t safety-ai .
+docker run --rm -it -v $(pwd):/workspace safety-ai
+```

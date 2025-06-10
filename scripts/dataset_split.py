@@ -1,4 +1,8 @@
-import argparse, json, gzip, pathlib, sys
+import argparse
+import json
+import gzip
+import pathlib
+import sys
 from collections import defaultdict
 
 import numpy as np
@@ -6,6 +10,7 @@ import yaml
 from torch.utils.data import Dataset
 from torchvision import transforms
 from torchvision.datasets import ImageFolder
+import matplotlib.pyplot as plt
 
 
 def dirichlet_split(
@@ -68,13 +73,52 @@ def main(split_yaml: pathlib.Path, out_dir: pathlib.Path):
     alpha = float(sp_cfg["alpha"])
     indices = dirichlet_split(labels, n_clients, alpha, seed)
 
+    # ── Compute per-client class distribution and entropy ──────────────────
+    n_classes = len(np.unique(labels))
+    class_counts = np.zeros((n_clients, n_classes), dtype=int)
+    entropies = {}
+    for i, idx_list in enumerate(indices):
+        cls = labels[idx_list]
+        counts = np.bincount(cls, minlength=n_classes)
+        class_counts[i] = counts
+        p = counts / counts.sum() if counts.sum() > 0 else np.zeros_like(counts)
+        ent = -np.sum(np.where(p > 0, p * np.log2(p), 0.0))
+        entropies[f"client_{i}"] = float(ent)
+
     meta = {
         "dataset": ds_name,
         "num_clients": n_clients,
         "seed": seed,
         **{k: v for k, v in sp_cfg.items() if k != "type"},
+        "entropy": entropies,
     }
-    save_obj = {"meta": meta, "splits": {f"client_{i}": idx for i, idx in enumerate(indices)}}
+    save_obj = {
+        "meta": meta,
+        "class_counts": {f"client_{i}": class_counts[i].tolist() for i in range(n_clients)},
+        "splits": {f"client_{i}": idx for i, idx in enumerate(indices)},
+    }
+
+    # Plot class distribution -------------------------------------------------
+    proportions = class_counts / class_counts.sum(axis=1, keepdims=True)
+    fig, ax = plt.subplots(figsize=(8, 4))
+    bottom = np.zeros(n_clients)
+    for c in range(n_classes):
+        ax.bar(
+            np.arange(n_clients),
+            proportions[:, c],
+            bottom=bottom,
+            label=f"class {c}",
+        )
+        bottom += proportions[:, c]
+    ax.set_xlabel("Client")
+    ax.set_ylabel("Proportion")
+    ax.set_title("Dataset split distribution")
+    ax.legend(title="Class", bbox_to_anchor=(1.05, 1), loc="upper left")
+    fig.tight_layout()
+    plot_path = out_dir / f"{split_yaml.stem}_dist.png"
+    fig.savefig(plot_path)
+    plt.close(fig)
+    print(f"[✓] Distribution plot → {plot_path.relative_to(pathlib.Path.cwd())}")
 
     out_path = out_dir / split_yaml.with_suffix("" ).name + ".json"
     save_json(save_obj, out_path)
