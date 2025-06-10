@@ -22,6 +22,44 @@ from omegaconf import OmegaConf
 from train.federated import run_federated_training
 
 
+def save_history(history, out_dir: Path) -> None:
+    """Save FL history to CSV and PNG plot."""
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    rounds = []
+    acc = []
+    loss = []
+
+    if getattr(history, "metrics_centralized", None):
+        acc = [v for _, v in history.metrics_centralized.get("accuracy", [])]
+    if getattr(history, "losses_centralized", None):
+        loss = [v for _, v in history.losses_centralized]
+        rounds = [r for r, _ in history.losses_centralized]
+
+    csv_path = out_dir / "history.csv"
+    with open(csv_path, "w", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(["round", "loss", "accuracy"])
+        for i, r in enumerate(rounds):
+            a = acc[i] if i < len(acc) else ""
+            l = loss[i] if i < len(loss) else ""
+            writer.writerow([r, l, a])
+
+    if rounds:
+        plt.figure()
+        if loss:
+            plt.plot(rounds, loss, label="loss")
+        if acc:
+            plt.plot(rounds[: len(acc)], acc, label="accuracy")
+        plt.xlabel("Round")
+        plt.legend()
+        plt.tight_layout()
+        plt.savefig(out_dir / "history.png")
+        plt.close()
+import matplotlib.pyplot as plt
+import csv
+
+
 def main():
     parser = argparse.ArgumentParser(description="Federated Learning 훈련 실행")
     parser.add_argument(
@@ -76,7 +114,9 @@ def main():
     
     # FL 훈련 실행
     try:
-        run_federated_training(cfg)
+        history = run_federated_training(cfg)
+        log_dir = Path("results") / f"fl_{cfg.train.strategy}"
+        save_history(history, log_dir)
         print("✅ Federated Learning 완료!")
     except Exception as e:
         print(f"❌ 훈련 중 오류 발생: {e}")

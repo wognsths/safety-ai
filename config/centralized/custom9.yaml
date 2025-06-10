@@ -1,0 +1,17 @@
+model:
+  name: resnet50
+  output_dim: 9
+
+train:
+  epochs: 20
+  batch_size: 32
+  lr: 0.001
+  optimizer: adam
+
+dataset:
+  name: custom9
+  root: data/train/raw
+  seed: 42
+
+save:
+  path: results/centralized/custom9/
