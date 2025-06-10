@@ -1,0 +1,25 @@
+model:
+  name: resnet50
+  output_dim: 10
+
+train:
+  epochs: 100
+  batch_size: 64
+  lr: 1e-3
+  optimizer: adam
+  momentum: 0.9
+  weight_decay: 0.0005
+  scheduler:
+    type: StepLR
+    step_size: 30
+    gamma: 0.1
+
+dataset:
+  name: train
+  root: data/train/raw
+  train_split: train
+  test_split: test
+  seed: 42
+
+save:
+  path: results/centralized/resnet50/

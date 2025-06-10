@@ -1,0 +1,23 @@
+# Core ML 프레임워크
+torch>=2.0.0
+torchvision>=0.15.0
+numpy>=1.21.0
+
+# Federated Learning
+flwr>=1.6.0
+
+# 설정 관리
+omegaconf>=2.3.0
+pyyaml>=6.0
+
+# 데이터 처리
+pillow>=9.0.0
+
+# 개발 도구 (선택사항)
+tqdm>=4.64.0
+matplotlib>=3.5.0
+seaborn>=0.11.0
+
+# Jupyter (선택사항)
+jupyter>=1.0.0
+notebook>=6.4.0 

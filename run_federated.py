@@ -1,0 +1,89 @@
+#!/usr/bin/env python3
+"""
+Federated Learning 실행 스크립트
+
+사용법:
+    python run_federated.py --config config/fl/fedavg.yaml
+    python run_federated.py --config config/fl/fedbn.yaml  
+    python run_federated.py --config config/fl/fedprox.yaml
+
+필수 전제조건:
+    1. 데이터셋 스플릿이 미리 생성되어 있어야 함:
+       python scripts/dataset_split.py --split config/split/dirichlet_alpha5.yaml
+    
+    2. 훈련 데이터가 data/train/raw에 준비되어 있어야 함
+    3. 테스트 데이터가 data/test에 준비되어 있어야 함
+"""
+
+import argparse
+from pathlib import Path
+
+from omegaconf import OmegaConf
+from train.federated import run_federated_training
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Federated Learning 훈련 실행")
+    parser.add_argument(
+        "--config", 
+        "-c",
+        type=Path,
+        required=True,
+        help="FL 설정 YAML 파일 경로 (예: config/fl/fedavg.yaml)"
+    )
+    parser.add_argument(
+        "--verbose",
+        "-v", 
+        action="store_true",
+        help="상세 로그 출력"
+    )
+    
+    args = parser.parse_args()
+    
+    # 설정 파일 로드
+    if not args.config.exists():
+        raise FileNotFoundError(f"설정 파일을 찾을 수 없습니다: {args.config}")
+    
+    cfg = OmegaConf.load(args.config)
+    
+    # 필수 설정 검증
+    required_keys = ["model", "train", "fl", "dataset"]
+    for key in required_keys:
+        if key not in cfg:
+            raise ValueError(f"설정 파일에서 필수 섹션 '{key}'를 찾을 수 없습니다")
+    
+    # 데이터셋 스플릿 파일 존재 확인
+    split_path = Path(cfg.dataset.split_path)
+    if not split_path.exists():
+        print(f"⚠️ 데이터셋 스플릿 파일이 없습니다: {split_path}")
+        print("다음 명령으로 먼저 스플릿을 생성하세요:")
+        print(f"python scripts/dataset_split.py --split config/split/dirichlet_alpha5.yaml")
+        return
+    
+    # 데이터 디렉터리 존재 확인  
+    data_root = Path(cfg.dataset.root)
+    if not data_root.exists():
+        print(f"⚠️ 훈련 데이터 디렉터리가 없습니다: {data_root}")
+        print("data/train/raw 디렉터리에 훈련 데이터를 준비하세요")
+        return
+    
+    print(f"🚀 Federated Learning 시작")
+    print(f"   전략: {cfg.train.strategy.upper()}")
+    print(f"   모델: {cfg.model.name}")
+    print(f"   라운드: {cfg.train.rounds}")
+    print(f"   클라이언트: {cfg.fl.min_available_clients}")
+    print(f"   스플릿: {split_path}")
+    
+    # FL 훈련 실행
+    try:
+        run_federated_training(cfg)
+        print("✅ Federated Learning 완료!")
+    except Exception as e:
+        print(f"❌ 훈련 중 오류 발생: {e}")
+        if args.verbose:
+            import traceback
+            traceback.print_exc()
+
+
+if __name__ == "__main__":
+    main() 

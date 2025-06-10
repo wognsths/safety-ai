@@ -1,0 +1,9 @@
+dataset:
+  name: custom9                 # 9‑class dataset identifier
+  root: data/train/raw
+  split:
+    type: dirichlet             # Dirichlet partitioning
+    alpha: 100.0                # Large α → uniform
+    num_clients: 5
+    seed: 42
+    cache: true                 # Cache split indices on disk

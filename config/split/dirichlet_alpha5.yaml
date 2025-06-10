@@ -1,0 +1,9 @@
+dataset:
+  name: custom9
+  root: data/train/raw
+  split:
+    type: dirichlet
+    alpha: 5.0                  # Noticeable dominant classes
+    num_clients: 5
+    seed: 42
+    cache: true
