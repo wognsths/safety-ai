@@ -41,8 +41,10 @@ class FederatedClient(NumPyClient):
         if gpu_ids:
             torch.cuda.set_device(int(gpu_ids[0]))
             self.device = torch.device("cuda")
+            log.info(f"Client assigned GPU {gpu_ids[0]}")
         else:
             self.device = torch.device("cpu")
+            log.info("Client using CPU")
         self.model = model.to(self.device)
         self.train_loader = train_loader
         self.test_loader  = test_loader
@@ -76,6 +78,7 @@ class FederatedClient(NumPyClient):
         global_params = [p.detach().clone() for p in self.model.parameters()]
         epochs = self.cfg.train.local_epochs
         for ep in range(epochs):
+            log.info(f"Client {config.get('round',0)} epoch {ep+1}/{epochs}")
             pbar = tqdm(self.train_loader, desc=f"Client{config.get('round',0)}-E{ep+1}/{epochs}", leave=False)
             for x, y in pbar:
                 x, y = x.to(self.device), y.to(self.device)
@@ -94,6 +97,7 @@ class FederatedClient(NumPyClient):
     def evaluate(self, params, config):
         self.set_parameters(params)
         self.model.eval()
+        log.info(f"Evaluating client {config.get('round',0)}")
         criterion = torch.nn.CrossEntropyLoss()
         total, correct, loss_sum = 0, 0, 0.0
         with torch.no_grad():
@@ -121,6 +125,7 @@ def run_federated_training(cfg: DictConfig):
         key = f"client_{part_id}"
         if key not in client_splits:
             raise KeyError(f"{key} 분할 없음")
+        log.info(f"Creating client {part_id} with {len(client_splits[key])} samples")
         # 데이터로더
         train_loader, test_loader = get_dataloaders_from_split(
             client_id=part_id,
@@ -131,15 +136,18 @@ def run_federated_training(cfg: DictConfig):
         )
         # 모델
         model = init_net(cfg.model.name, cfg.model.output_dim)
+        log.info(f"Client {part_id} model initialized on {DEFAULT_DEVICE}")
         return FederatedClient(model, train_loader, test_loader, cfg).to_client()
 
     strategy = get_strategy(cfg)
 
     log.info("Flower simulation starting …")
-    fl.simulation.start_simulation(
+    history = fl.simulation.start_simulation(
         client_fn       = client_fn,
         num_clients     = len(client_splits),
         client_resources={"num_gpus": 1, "num_cpus": 1},
         config          = fl.server.ServerConfig(num_rounds=cfg.train.rounds),
         strategy        = strategy,
     )
+    log.info("Simulation finished")
+    return history

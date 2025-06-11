@@ -17,6 +17,11 @@ Federated Learning 실행 스크립트
 
 import argparse
 from pathlib import Path
+import logging
+import sys
+
+import matplotlib.pyplot as plt
+import csv
 
 from omegaconf import OmegaConf
 from train.federated import run_federated_training
@@ -56,8 +61,6 @@ def save_history(history, out_dir: Path) -> None:
         plt.tight_layout()
         plt.savefig(out_dir / "history.png")
         plt.close()
-import matplotlib.pyplot as plt
-import csv
 
 
 def main():
@@ -71,13 +74,29 @@ def main():
     )
     parser.add_argument(
         "--verbose",
-        "-v", 
+        "-v",
         action="store_true",
         help="상세 로그 출력"
     )
-    
+    parser.add_argument(
+        "--log-file",
+        type=Path,
+        default=None,
+        help="로그를 저장할 파일 경로"
+    )
+
     args = parser.parse_args()
-    
+
+    handlers = [logging.StreamHandler(sys.stdout)]
+    if args.log_file:
+        handlers.append(logging.FileHandler(args.log_file))
+    logging.basicConfig(
+        level=logging.DEBUG if args.verbose else logging.INFO,
+        format="%(asctime)s | %(levelname)s | %(message)s",
+        handlers=handlers,
+    )
+    log = logging.getLogger("run_federated")
+
     # 설정 파일 로드
     if not args.config.exists():
         raise FileNotFoundError(f"설정 파일을 찾을 수 없습니다: {args.config}")
@@ -93,33 +112,33 @@ def main():
     # 데이터셋 스플릿 파일 존재 확인
     split_path = Path(cfg.dataset.split_path)
     if not split_path.exists():
-        print(f"⚠️ 데이터셋 스플릿 파일이 없습니다: {split_path}")
-        print("다음 명령으로 먼저 스플릿을 생성하세요:")
-        print(f"python scripts/dataset_split.py --split config/split/dirichlet_alpha5.yaml")
+        log.warning(f"데이터셋 스플릿 파일이 없습니다: {split_path}")
+        log.warning("다음 명령으로 먼저 스플릿을 생성하세요:")
+        log.warning("python scripts/dataset_split.py --split config/split/dirichlet_alpha5.yaml")
         return
     
     # 데이터 디렉터리 존재 확인  
     data_root = Path(cfg.dataset.root)
     if not data_root.exists():
-        print(f"⚠️ 훈련 데이터 디렉터리가 없습니다: {data_root}")
-        print("data/train/raw 디렉터리에 훈련 데이터를 준비하세요")
+        log.warning(f"훈련 데이터 디렉터리가 없습니다: {data_root}")
+        log.warning("data/train/raw 디렉터리에 훈련 데이터를 준비하세요")
         return
     
-    print(f"🚀 Federated Learning 시작")
-    print(f"   전략: {cfg.train.strategy.upper()}")
-    print(f"   모델: {cfg.model.name}")
-    print(f"   라운드: {cfg.train.rounds}")
-    print(f"   클라이언트: {cfg.fl.min_available_clients}")
-    print(f"   스플릿: {split_path}")
+    log.info("🚀 Federated Learning 시작")
+    log.info(f"   전략: {cfg.train.strategy.upper()}")
+    log.info(f"   모델: {cfg.model.name}")
+    log.info(f"   라운드: {cfg.train.rounds}")
+    log.info(f"   클라이언트: {cfg.fl.min_available_clients}")
+    log.info(f"   스플릿: {split_path}")
     
     # FL 훈련 실행
     try:
         history = run_federated_training(cfg)
         log_dir = Path("results") / f"fl_{cfg.train.strategy}"
         save_history(history, log_dir)
-        print("✅ Federated Learning 완료!")
+        log.info("✅ Federated Learning 완료!")
     except Exception as e:
-        print(f"❌ 훈련 중 오류 발생: {e}")
+        log.error(f"❌ 훈련 중 오류 발생: {e}")
         if args.verbose:
             import traceback
             traceback.print_exc()
