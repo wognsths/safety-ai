@@ -159,11 +159,14 @@ def run_federated_training(cfg: DictConfig) -> None:
     # 2. Flower client factory --------------------------------------------------------------
     def client_fn(context: Context | str):
         """Create a single federated client.
-
-        Supports both new (Context) and old (cid str) signatures for
+        Supports both new (``Context``) and old (``cid`` string) signatures for
         backward compatibility.
         """
-        cid = context.cid if hasattr(context, "cid") else context
+        try:
+            cid = context.cid  # type: ignore[attr-defined]
+        except AttributeError:
+            cid = context
+
         client_id = int(cid)
         try:
             train_loader, test_loader = get_dataloaders_from_split(
