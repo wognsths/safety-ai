@@ -22,6 +22,7 @@ from typing import Callable, Dict, List
 import flwr as fl
 import torch
 from flwr.client import NumPyClient
+from flwr.common import Context
 from omegaconf import DictConfig
 
 from train.models import init_net
@@ -144,22 +145,44 @@ def run_federated_training(cfg: DictConfig) -> None:
 
     # 1. Load split indices ----------------------------------------------------------------
     split_path = Path(cfg.dataset.split_path)
-    with open(split_path, "r", encoding="utf‑8") as fp:
+    if not split_path.exists():
+        raise FileNotFoundError(f"Split file not found: {split_path}")
+
+    with open(split_path, "r", encoding="utf-8") as fp:
         split_data = json.load(fp)
     client_splits = split_data["splits"]
 
+    data_root = Path(cfg.dataset.root)
+    if not data_root.exists():
+        raise FileNotFoundError(f"Dataset root not found: {data_root}")
+
     # 2. Flower client factory --------------------------------------------------------------
-    def client_fn(cid: str):
+    def client_fn(context: Context | str):
+        """Create a single federated client.
+
+        Supports both new (``Context``) and old (``cid`` string) signatures for
+        backward compatibility.
+        """
+        try:
+            cid = context.cid  # type: ignore[attr-defined]
+        except AttributeError:
+            cid = context
+
         client_id = int(cid)
-        train_loader, test_loader = get_dataloaders_from_split(
-            client_id=client_id,
-            split_indices=client_splits[f"client_{client_id}"],
-            data_root=cfg.dataset.root,
-            batch_size=cfg.train.batch_size,
-            dataset_name=cfg.dataset.name,
-        )
-        model = init_net(cfg.model.name, cfg.model.output_dim)
-        return FederatedClient(model, train_loader, test_loader, cfg)
+        try:
+            train_loader, test_loader = get_dataloaders_from_split(
+                client_id=client_id,
+                split_indices=client_splits[f"client_{client_id}"],
+                data_root=data_root,
+                batch_size=cfg.train.batch_size,
+                dataset_name=cfg.dataset.name,
+            )
+            model = init_net(cfg.model.name, cfg.model.output_dim)
+            numpy_client = FederatedClient(model, train_loader, test_loader, cfg)
+            return numpy_client.to_client()
+        except Exception as err:
+            print(f"[client_fn] Error building client {cid}: {err}")
+            raise
 
     # 3. Strategy (FedBN, FedAvg, etc.) -----------------------------------------------------
     strategy = get_strategy(cfg)
