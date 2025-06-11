@@ -1,6 +1,9 @@
-# Core ML 프레임워크
-torch>=2.0.0
-torchvision>=0.15.0
+# Core ML
+# torch==2.3.1+cu121
+# torchaudio==2.3.1+cu121
+# torchvision==0.18.1+cu121
+# 위 3줄은 pip 기본 인덱스가 아닌 PyTorch 전용 휠 서버에서 받아옵니다.
+
 numpy>=1.21.0
 
 # Federated Learning
@@ -14,12 +17,14 @@ pyyaml>=6.0
 # 데이터 처리
 pillow>=9.0.0
 
-# 개발 도구 (선택사항)
+# GPU 관리
+gputil>=1.4.0
+
+# 개발 도구
 tqdm>=4.64.0
 matplotlib>=3.5.0
 seaborn>=0.11.0
 
-# Jupyter (선택사항)
+# Jupyter
 jupyter>=1.0.0
-notebook>=6.4.0 
-
+notebook>=6.4.0
