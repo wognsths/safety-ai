@@ -17,7 +17,7 @@ import flwr as fl
 import numpy as np
 from omegaconf import DictConfig
 
-from models import init_net
+from train.models import init_net
 
 
 # ──────────────────────────────────────────────────────────────

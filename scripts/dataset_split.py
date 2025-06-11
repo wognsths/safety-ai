@@ -49,7 +49,7 @@ def save_json(obj, path: pathlib.Path, compress: bool = False):
 
 
 def main(split_yaml: pathlib.Path, out_dir: pathlib.Path):
-    cfg = yaml.safe_load(split_yaml.read_text())
+    cfg = yaml.safe_load(split_yaml.read_text(encoding="utf-8"))
 
     ds_name = cfg["dataset"]["name"]
     root = pathlib.Path(cfg["dataset"]["root"])
@@ -118,11 +118,12 @@ def main(split_yaml: pathlib.Path, out_dir: pathlib.Path):
     plot_path = out_dir / f"{split_yaml.stem}_dist.png"
     fig.savefig(plot_path)
     plt.close(fig)
+    plot_path = plot_path.resolve()
     print(f"[✓] Distribution plot → {plot_path.relative_to(pathlib.Path.cwd())}")
 
-    out_path = out_dir / split_yaml.with_suffix("" ).name + ".json"
+    out_path = out_dir / (split_yaml.with_suffix("" ).name + ".json")
     save_json(save_obj, out_path)
-    print(f"[✓] Split saved → {out_path.relative_to(pathlib.Path.cwd())}")
+    print(f"[✓] Split saved → {out_path.resolve().relative_to(pathlib.Path.cwd())}")
 
 
 if __name__ == "__main__":

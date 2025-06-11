@@ -24,9 +24,9 @@ import torch
 from flwr.client import NumPyClient
 from omegaconf import DictConfig
 
-from models import init_net
-from strategies import get_strategy
-from loader import get_dataloaders_from_split
+from train.models import init_net
+from train.strategies import get_strategy
+from train.loader import get_dataloaders_from_split
 
 # ──────────────────────────────────────────────────────────────
 # Global device configuration

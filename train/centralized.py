@@ -8,8 +8,8 @@ from omegaconf import DictConfig
 from torchvision.datasets import ImageFolder
 import matplotlib.pyplot as plt
 
-from .models import init_net
-from .loader import _infer_img_size, _get_transform
+from train.models import init_net
+from train.loader import _infer_img_size, _get_transform
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
