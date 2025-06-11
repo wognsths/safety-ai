@@ -159,7 +159,6 @@ def run_federated_training(cfg: DictConfig) -> None:
     # 2. Flower client factory --------------------------------------------------------------
     def client_fn(context: Context | str):
         """Create a single federated client.
-
         Supports both new (``Context``) and old (``cid`` string) signatures for
         backward compatibility.
         """
