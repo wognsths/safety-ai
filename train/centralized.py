@@ -1,6 +1,7 @@
 import csv
 from pathlib import Path
 from typing import Tuple
+import logging
 
 import torch
 from torch.utils.data import DataLoader
@@ -68,7 +69,9 @@ def run_centralized_training(cfg: DictConfig) -> None:
         val_loss, val_acc = _evaluate(model, test_loader, criterion)
         history["loss"].append(val_loss)
         history["acc"].append(val_acc)
-        print(f"Epoch {epoch+1}/{cfg.train.epochs} - loss: {val_loss:.4f} acc: {val_acc:.4f}")
+        logging.info(
+            f"Epoch {epoch+1}/{cfg.train.epochs} - loss: {val_loss:.4f} acc: {val_acc:.4f}"
+        )
 
     out_dir = Path(cfg.save.path)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -86,3 +89,4 @@ def run_centralized_training(cfg: DictConfig) -> None:
     plt.tight_layout()
     plt.savefig(out_dir / "history.png")
     plt.close()
+    logging.info(f"Results saved to {out_dir}")
