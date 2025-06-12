@@ -163,5 +163,12 @@ fl:
 
 ```bash
 docker build -t safety-ai .
-docker run --rm -it -v $(pwd):/workspace safety-ai
+docker run --gpus all -it -v $(pwd):/workspace -v $(pwd)/data:/workspace/data safety-ai
+
+# Powershell
+docker run --gpus all -it `
+  --shm-size=6g `
+  -v "$(Get-Location):/workspace" `
+  -v "$(Get-Location)/data:/workspace/data" `
+  safety-ai
 ```

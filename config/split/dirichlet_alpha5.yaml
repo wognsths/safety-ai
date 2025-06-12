@@ -4,6 +4,6 @@ dataset:
   split:
     type: dirichlet
     alpha: 5.0                  # Noticeable dominant classes
-    num_clients: 5
+    num_clients: 10
     seed: 42
     cache: true

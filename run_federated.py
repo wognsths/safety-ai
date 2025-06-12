@@ -113,9 +113,8 @@ def main():
     split_path = Path(cfg.dataset.split_path)
     if not split_path.exists():
         log.warning(f"데이터셋 스플릿 파일이 없습니다: {split_path}")
-        log.warning("다음 명령으로 먼저 스플릿을 생성하세요:")
-        log.warning("python scripts/dataset_split.py --split config/split/dirichlet_alpha5.yaml")
         return
+    log.info(f"   스플릿: {split_path}")
     
     # 데이터 디렉터리 존재 확인  
     data_root = Path(cfg.dataset.root)

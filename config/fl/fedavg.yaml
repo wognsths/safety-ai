@@ -19,4 +19,4 @@ fl:
 dataset:
   name: custom9
   root: data/train/raw
-  split_path: data/split/dirichlet_alpha5.json
+  split_path: data/split/quasi_iid.json

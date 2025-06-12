@@ -1,8 +1,7 @@
 # Core ML
-# torch==2.3.1+cu121
+# torch==2.3.1+cu121  → Dockerfile에서 별도로 설치
 # torchaudio==2.3.1+cu121
 # torchvision==0.18.1+cu121
-# 위 3줄은 pip 기본 인덱스가 아닌 PyTorch 전용 휠 서버에서 받아옵니다.
 
 numpy>=1.21.0
 

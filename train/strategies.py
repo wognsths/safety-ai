@@ -11,13 +11,18 @@ Custom FL strategies for Flower.
 
 from __future__ import annotations
 
-from typing import Dict, List, Tuple
+from pathlib import Path
+from typing import Dict, List, Tuple, Optional, Union
 
 import flwr as fl
 import numpy as np
+import torch
+from torch.utils.data import DataLoader
+from torchvision.datasets import ImageFolder
 from omegaconf import DictConfig
 
 from train.models import init_net
+from train.loader import _get_transform, _infer_img_size
 
 
 # ──────────────────────────────────────────────────────────────
@@ -32,6 +37,83 @@ def _is_bn_param(name: str) -> bool:
 
 
 # ──────────────────────────────────────────────────────────────
+# 중앙화된 평가 함수
+# ──────────────────────────────────────────────────────────────
+def _create_centralized_evaluate_fn(cfg: DictConfig):
+    """data/test 데이터로 중앙화된 평가를 수행하는 함수를 생성합니다."""
+    
+    def evaluate_fn(server_round: int, parameters, config: Dict[str, fl.common.Scalar]):
+        # 글로벌 모델 생성
+        model = init_net(cfg.model.name, cfg.model.output_dim)
+        
+        # 파라미터 로드 (parameters가 이미 numpy array 리스트인 경우와 Parameters 객체인 경우 모두 처리)
+        if hasattr(parameters, 'tensors'):
+            # Parameters 객체인 경우
+            param_arrays = fl.common.parameters_to_ndarrays(parameters)
+        else:
+            # 이미 numpy array 리스트인 경우
+            param_arrays = parameters
+            
+        params_dict = zip(model.state_dict().keys(), param_arrays)
+        state_dict = {k: torch.tensor(v) for k, v in params_dict}
+        model.load_state_dict(state_dict, strict=True)
+        
+        # 디바이스 설정
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        model.to(device)
+        model.eval()
+        
+        # 테스트 데이터로더 생성 (data/test)
+        data_root = Path(cfg.dataset.root)  # data/train/raw
+        test_root = data_root.parent.parent / "test"  # data/test
+
+        
+        if not test_root.exists():
+            print(f"Warning: Test directory {test_root} does not exist")
+            return None
+        
+        img_size = _infer_img_size(cfg.dataset.name)
+        test_dataset = ImageFolder(
+            root=test_root,
+            transform=_get_transform(train=False, img_size=img_size)
+        )
+        
+        test_loader = DataLoader(
+            test_dataset,
+            batch_size=cfg.train.batch_size,
+            shuffle=False,
+            num_workers=2,
+            pin_memory=torch.cuda.is_available(),
+        )
+        
+        # 평가 수행
+        criterion = torch.nn.CrossEntropyLoss()
+        total_loss = 0.0
+        total_correct = 0
+        total_samples = 0
+        
+        with torch.no_grad():
+            for x, y in test_loader:
+                x, y = x.to(device), y.to(device)
+                logits = model(x)
+                loss = criterion(logits, y)
+                
+                total_loss += loss.item() * x.size(0)
+                predictions = logits.argmax(dim=1)
+                total_correct += (predictions == y).sum().item()
+                total_samples += y.size(0)
+        
+        accuracy = total_correct / total_samples
+        avg_loss = total_loss / total_samples
+        
+        print(f"Round {server_round} - Centralized Test | Loss: {avg_loss:.4f} | Accuracy: {accuracy:.4f}")
+        
+        return avg_loss, {"accuracy": accuracy}
+    
+    return evaluate_fn
+
+
+# ──────────────────────────────────────────────────────────────
 # 1. FedAvg (래퍼)
 # ──────────────────────────────────────────────────────────────
 class FedAvgStrategy(fl.server.strategy.FedAvg):
@@ -42,7 +124,15 @@ class FedAvgStrategy(fl.server.strategy.FedAvg):
             min_fit_clients=cfg.fl.min_fit_clients,
             min_available_clients=cfg.fl.min_available_clients,
             fraction_fit=cfg.fl.get("fraction_fit", 1.0),
+            evaluate_fn=_create_centralized_evaluate_fn(cfg),  # 중앙화된 평가 추가
         )
+
+    def configure_fit(self, server_round: int, parameters: fl.common.Parameters, client_manager: fl.server.client_manager.ClientManager):
+        """라운드별 참여 클라이언트 로깅 추가"""
+        config = super().configure_fit(server_round, parameters, client_manager)
+        client_ids = [int(proxy.cid) for proxy, _ in config]
+        print(f"\n🔄 Round {server_round} - 참여 클라이언트: {sorted(client_ids)} (총 {len(client_ids)}개)")
+        return config
 
 
 # ──────────────────────────────────────────────────────────────
@@ -57,16 +147,22 @@ class FedProxStrategy(fl.server.strategy.FedAvg):
             min_fit_clients=cfg.fl.min_fit_clients,
             min_available_clients=cfg.fl.min_available_clients,
             fraction_fit=cfg.fl.get("fraction_fit", 1.0),
+            evaluate_fn=_create_centralized_evaluate_fn(cfg),  # 중앙화된 평가 추가
         )
 
     def configure_fit(  # noqa: D401
         self,
-        rnd: int,
+        server_round: int,
         parameters: fl.common.Parameters,
         client_manager: fl.server.client_manager.ClientManager,
     ) -> List[Tuple[fl.server.client_proxy.ClientProxy, fl.common.FitIns]]:
         # 기본 FedAvg 설정을 가져온 뒤 config에 μ 추가
-        fit_config = super().configure_fit(rnd, parameters, client_manager)
+        fit_config = super().configure_fit(server_round, parameters, client_manager)
+        
+        # 참여 클라이언트 로깅
+        client_ids = [int(proxy.cid) for proxy, _ in fit_config]
+        print(f"\n🔄 Round {server_round} (FedProx μ={self.mu}) - 참여 클라이언트: {sorted(client_ids)} (총 {len(client_ids)}개)")
+        
         patched: List[Tuple[fl.server.client_proxy.ClientProxy, fl.common.FitIns]] = []
         for client_proxy, fit_ins in fit_config:
             new_conf = dict(fit_ins.config)
@@ -90,7 +186,15 @@ class FedBNStrategy(fl.server.strategy.FedAvg):
             min_fit_clients=cfg.fl.min_fit_clients,
             min_available_clients=cfg.fl.min_available_clients,
             fraction_fit=cfg.fl.get("fraction_fit", 1.0),
+            evaluate_fn=_create_centralized_evaluate_fn(cfg),  # 중앙화된 평가 추가
         )
+
+    def configure_fit(self, server_round: int, parameters: fl.common.Parameters, client_manager: fl.server.client_manager.ClientManager):
+        """라운드별 참여 클라이언트 로깅 추가"""
+        config = super().configure_fit(server_round, parameters, client_manager)
+        client_ids = [int(proxy.cid) for proxy, _ in config]
+        print(f"\n🔄 Round {server_round} (FedBN) - 참여 클라이언트: {sorted(client_ids)} (총 {len(client_ids)}개)")
+        return config
 
     def aggregate_fit(  # noqa: D401
         self,

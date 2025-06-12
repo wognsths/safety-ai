@@ -1,16 +1,16 @@
 model:
-  name: resnet50
+  name: efficientnet_b0
   output_dim: 9
 
 train:
   strategy: fedprox
+  mu: 0.05  # FedProx proximal term 강도 (0.01~1.0 권장)
   rounds: 50
   local_epochs: 5
   batch_size: 32
   lr: 0.001
   optimizer: adam
   clients_per_round: 5
-  mu: 0.1                  # FedProx Parameter
 
 fl:
   fraction_fit: 1.0
