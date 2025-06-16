@@ -1,22 +1,22 @@
 model:
-  name: resnet50
+  name: efficientnet_b0
   output_dim: 9
 
 train:
   strategy: fedavg
-  rounds: 50
+  rounds: 22
   local_epochs: 5
   batch_size: 32
   lr: 0.001
   optimizer: adam
-  clients_per_round: 5
+  clients_per_round: 30
 
 fl:
-  fraction_fit: 1.0
-  min_fit_clients: 5
-  min_available_clients: 5
+  fraction_fit: 0.4
+  min_fit_clients: 12
+  min_available_clients: 12
 
 dataset:
   name: custom9
   root: data/train/raw
-  split_path: data/split/quasi_iid.json
+  split_path: data/split/client30.json

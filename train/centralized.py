@@ -18,7 +18,7 @@ DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 def _build_loaders(root: Path, batch_size: int, dataset_name: str) -> Tuple[DataLoader, DataLoader]:
     img_size = _infer_img_size(dataset_name)
     train_ds = ImageFolder(root=root, transform=_get_transform(True, img_size))
-    test_root = root.parent / "test"
+    test_root = root.parent.parent / "test"
     test_ds = ImageFolder(root=test_root, transform=_get_transform(False, img_size))
     train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True, num_workers=4)
     test_loader = DataLoader(test_ds, batch_size=batch_size, shuffle=False, num_workers=2)

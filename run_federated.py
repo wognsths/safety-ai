@@ -25,6 +25,7 @@ import csv
 
 from omegaconf import OmegaConf
 from train.federated import run_federated_training
+from datetime import datetime
 
 
 def save_history(history, out_dir: Path) -> None:
@@ -132,8 +133,9 @@ def main():
     
     # FL 훈련 실행
     try:
+        ts = datetime.now().strftime("%Y%m%d-%H%M%S") 
         history = run_federated_training(cfg)
-        log_dir = Path("results") / f"fl_{cfg.train.strategy}"
+        log_dir = Path("results") / f"fl_{cfg.train.strategy}_{ts}"
         save_history(history, log_dir)
         log.info("✅ Federated Learning 완료!")
     except Exception as e:

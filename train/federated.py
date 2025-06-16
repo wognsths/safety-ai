@@ -5,6 +5,7 @@
 - FedBN, FedProx, 기본 FedAvg 모두 지원
 """
 from __future__ import annotations
+from datetime import datetime
 
 import json
 import logging
@@ -249,7 +250,9 @@ def run_federated_training(cfg: DictConfig):
             "accuracy": acc_vals,
         })
 
-        out_dir = Path("results") / f"fl_{cfg.train.strategy.lower()}"
+        ts = datetime.now().strftime("%Y%m%d-%H%M%S")          # 추가
+        out_dir = Path("results") / f"fl_{cfg.train.strategy.lower()}_{ts}"  # 수정
+
         out_dir.mkdir(parents=True, exist_ok=True)
 
         history_path = out_dir / "history.csv"
@@ -258,5 +261,6 @@ def run_federated_training(cfg: DictConfig):
         log.info(f"📊 History saved to {history_path.resolve()}")
     except Exception as e:
         log.warning(f"Warning: {str(e)}")
-
+    
+    ray.shutdown()
     return history

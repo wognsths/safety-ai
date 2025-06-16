@@ -1,5 +1,5 @@
 model:
-  name: resnet50
+  name: efficientnet_b0
   output_dim: 9
 
 train:

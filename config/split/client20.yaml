@@ -3,7 +3,7 @@ dataset:
   root: data/train/raw
   split:
     type: dirichlet
-    alpha: 1.0                  # Strong class concentration
-    num_clients: 10
+    alpha: 1                  # Strong class concentration
+    num_clients: 20
     seed: 42
     cache: true
